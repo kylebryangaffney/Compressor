@@ -27,7 +27,7 @@ Fader::Fader(const juce::String& labelText,
 
     if (drawFromMiddle)
     {
-        slider.setRange(-100.0, 12.0, 0.1); // or whatever is appropriate
+        slider.setRange(-100.0, 12.0, 0.1);
         slider.setSkewFactorFromMidPoint(-18.0f);
     }
 
@@ -36,7 +36,6 @@ Fader::Fader(const juce::String& labelText,
     label.attachToComponent(&slider, false);
     addAndMakeVisible(label);
 
-    // Optional custom LookAndFeel (can be set externally too)
     // setLookAndFeel(FaderLookAndFeel::get());
 
     // This component’s default size

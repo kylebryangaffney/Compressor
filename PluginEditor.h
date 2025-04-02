@@ -23,13 +23,14 @@ public:
 
 private:
     CompressorAudioProcessor& audioProcessor;
-    void parameterValueChanged(int, float) override;
-    void parameterGestureChanged(int, bool) override {}
+    //void parameterValueChanged(int, float) override;
+    //void parameterGestureChanged(int, bool) override {}
 
     // === Controls ===
     // Faders
-    Fader inputGainFader;
-    Fader outputGainFader;
+    Fader inputGainFader{"Input Gain", audioProcessor.apvts, inputGainParamID};
+    Fader outputGainFader{ "Output Gain", audioProcessor.apvts, outputGainParamID };
+    
 
     // Filter & Compressor Switches
     //ThreeWaySwitch highPassFilterSwitch;
@@ -47,8 +48,8 @@ private:
     //VUMeter vuMeter;
 
     // Bypass
-    juce::ImageButton bypassButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
+    //juce::ImageButton bypassButton;
+    //std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 
     // Presets
     Gui::PresetPanel presetPanel;
