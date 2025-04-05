@@ -64,15 +64,15 @@ private:
     juce::AudioParameterFloat* outputGainParam = nullptr;
     juce::AudioParameterFloat* lowCutParam = nullptr;
 
-    // Float-based compressor controls
-    juce::AudioParameterFloat* compAAttackParam = nullptr;
-    juce::AudioParameterFloat* compAReleaseParam = nullptr;
-    juce::AudioParameterFloat* compBAttackParam = nullptr;
-    juce::AudioParameterFloat* compBReleaseParam = nullptr;
-
-    // Choices (ratio + metering)
     juce::AudioParameterChoice* compARatioParam = nullptr;
     juce::AudioParameterChoice* compBRatioParam = nullptr;
+
+    juce::AudioParameterChoice* compAAttackParam = nullptr;
+    juce::AudioParameterChoice* compAReleaseParam = nullptr;
+
+    juce::AudioParameterChoice* compBAttackParam = nullptr;
+    juce::AudioParameterChoice* compBReleaseParam = nullptr;
+
     juce::AudioParameterChoice* meterSwitchParam = nullptr;
 
 
