@@ -13,6 +13,7 @@
 
 #include <JuceHeader.h>
 
+
 //==============================================================================
 namespace ParamIDs
 {
@@ -28,7 +29,6 @@ namespace ParamIDs
     inline const juce::ParameterID compBRelease{ "compBRelease", 1 };
     inline const juce::ParameterID bypass{ "bypass", 1 };
 }
-
 //==============================================================================
 class Parameters
 {
@@ -42,20 +42,21 @@ public:
     void smoothen() noexcept;
 
     //==============================================================================
-
-
+    // Smoothed / DSP values for processing
     float inputGain = 0.f;
     float outputGain = 0.f;
     float lowCut = 75.f;
+
     float compAAttack = 1.f;
     float compARatio = 1.5f;
     float compARelease = 55.f;
+
     float compBAttack = 1.f;
     float compBRatio = 1.5f;
     float compBRelease = 55.f;
+
     bool  bypassed = false;
 
-    //==============================================================================
     juce::AudioParameterBool* bypassParam = nullptr;
 
 private:
@@ -75,7 +76,7 @@ private:
 
     juce::AudioParameterChoice* meterSwitchParam = nullptr;
 
-
+    //==============================================================================
     // Smoothers
     juce::LinearSmoothedValue<float> inputGainSmoother;
     juce::LinearSmoothedValue<float> outputGainSmoother;

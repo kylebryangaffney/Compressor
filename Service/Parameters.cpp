@@ -84,7 +84,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
     // Filter
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamIDs::lowCut, "Low Cut",
-        juce::NormalisableRange<float>{ 20.f, 200.f, 1.f },
+        juce::NormalisableRange<float>{ 20.f, 1000.f, 1.f },
         75.f,
         juce::AudioParameterFloatAttributes()
         .withStringFromValueFunction(stringFromHz)

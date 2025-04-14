@@ -8,20 +8,18 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "Service/ProtectYourEars.h"
 
 //==============================================================================
 CompressorAudioProcessor::CompressorAudioProcessor()
-#ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       )
-#endif
+    :AudioProcessor(
+        BusesProperties()
+        .withInput("Input", juce::AudioChannelSet::stereo(), true)
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+    ),
+    params(apvts)
 {
+    lowCutFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
 }
 
 CompressorAudioProcessor::~CompressorAudioProcessor()
@@ -36,29 +34,29 @@ const juce::String CompressorAudioProcessor::getName() const
 
 bool CompressorAudioProcessor::acceptsMidi() const
 {
-   #if JucePlugin_WantsMidiInput
+#if JucePlugin_WantsMidiInput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool CompressorAudioProcessor::producesMidi() const
 {
-   #if JucePlugin_ProducesMidiOutput
+#if JucePlugin_ProducesMidiOutput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool CompressorAudioProcessor::isMidiEffect() const
 {
-   #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 double CompressorAudioProcessor::getTailLengthSeconds() const
@@ -69,7 +67,7 @@ double CompressorAudioProcessor::getTailLengthSeconds() const
 int CompressorAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
+    // so this should be at least 1, even if you're not really implementing programs.
 }
 
 int CompressorAudioProcessor::getCurrentProgram()
@@ -77,24 +75,34 @@ int CompressorAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void CompressorAudioProcessor::setCurrentProgram (int index)
+void CompressorAudioProcessor::setCurrentProgram(int index)
 {
 }
 
-const juce::String CompressorAudioProcessor::getProgramName (int index)
+const juce::String CompressorAudioProcessor::getProgramName(int index)
 {
     return {};
 }
 
-void CompressorAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void CompressorAudioProcessor::changeProgramName(int index, const juce::String& newName)
 {
 }
 
 //==============================================================================
-void CompressorAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void CompressorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    params.prepareToPlay(sampleRate);
+    params.reset();
+
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = juce::uint32(samplesPerBlock);
+    spec.numChannels = 2;
+
+    lowCutFilter.prepare(spec);
+    lowCutFilter.reset();
+
+    lastLowCut = -1.f;
 }
 
 void CompressorAudioProcessor::releaseResources()
@@ -104,58 +112,66 @@ void CompressorAudioProcessor::releaseResources()
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool CompressorAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool CompressorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
-    juce::ignoreUnused (layouts);
-    return true;
-  #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
-        return false;
+    const auto mono = juce::AudioChannelSet::mono();
+    const auto stereo = juce::AudioChannelSet::stereo();
+    const auto in = layouts.getMainInputChannelSet();
+    const auto out = layouts.getMainOutputChannelSet();
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
-        return false;
-   #endif
+    DBG("isBusesLayoutSupported, in: " << in.getDescription() << ", out: " << out.getDescription());
 
-    return true;
-  #endif
+    if ((in == mono && out == mono) ||
+        (in == mono && out == stereo) ||
+        (in == stereo && out == stereo))
+        return true;
+
+    return false;
 }
 #endif
 
-void CompressorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+
+void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
+    juce::AudioBuffer mainInput = getBusBuffer(buffer, true, 0);
+    juce::AudioBuffer mainOutput = getBusBuffer(buffer, false, 0);
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+    const bool stereoIn = mainInput.getNumChannels() > 1;
+    const bool stereoOut = mainOutput.getNumChannels() > 1;
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
+    const float* inputDataL = mainInput.getReadPointer(0);
+    const float* inputDataR = mainInput.getReadPointer(stereoIn ? 1 : 0);
+    float* outputDataL = mainOutput.getWritePointer(0);
+    float* outputDataR = mainOutput.getWritePointer(stereoOut ? 1 : 0);
+
+    float maxL = 0.f;
+    float maxR = 0.f;
+
+    params.update();
+
+    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
     {
-        auto* channelData = buffer.getWritePointer (channel);
+        params.smoothen();
 
-        // ..do something to the data...
+        updateLowCutFilter();
+
+        float dryL = inputDataL[sample];
+        float dryR = stereoOut ? inputDataR[sample] : dryL;
+
+        float wetL = lowCutFilter.processSample(0, dryL);
+        float wetR = lowCutFilter.processSample(1, dryR);
+
+        outputDataL[sample] = wetL;
+        outputDataR[sample] = wetR;
+
+        maxL = std::max(maxL, std::abs(wetL));
+        maxR = std::max(maxR, std::abs(wetR));
     }
+    DBG("LowCut frequency: " << params.lowCut << " Hz");
+
+#if JUCE_DEBUG
+    protectYourEars(buffer);
+#endif
 }
 
 //==============================================================================
@@ -166,18 +182,19 @@ bool CompressorAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* CompressorAudioProcessor::createEditor()
 {
-    return new CompressorAudioProcessorEditor (*this);
+    return new CompressorAudioProcessorEditor(*this);
 }
 
 //==============================================================================
-void CompressorAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void CompressorAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+
 }
 
-void CompressorAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void CompressorAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
@@ -188,4 +205,28 @@ void CompressorAudioProcessor::setStateInformation (const void* data, int sizeIn
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new CompressorAudioProcessor();
+}
+
+
+void CompressorAudioProcessor::initializeProcessing(juce::AudioBuffer<float>& buffer)
+{
+    juce::ScopedNoDenormals noDenormals;
+
+    int totalNumInputChannels = getTotalNumInputChannels();
+    int totalNumOutputChannels = getTotalNumOutputChannels();
+
+    for (int i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
+
+    params.update();
+}
+
+void CompressorAudioProcessor::updateLowCutFilter()
+{
+    if (params.lowCut != lastLowCut)
+    {
+        lowCutFilter.setResonance(0.7071f);
+        lowCutFilter.setCutoffFrequency(params.lowCut);
+        lastLowCut = params.lowCut;
+    }
 }

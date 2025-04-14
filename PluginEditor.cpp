@@ -13,9 +13,8 @@
 CompressorAudioProcessorEditor::CompressorAudioProcessorEditor(CompressorAudioProcessor& p)
     : AudioProcessorEditor(&p), audioProcessor(p)
 {
-    addAndMakeVisible(inputGainFader);
-    addAndMakeVisible(presetPanel);
-
+    // Make sure that before the constructor has finished, you've set the
+    // editor's size to whatever you need it to be.
     setSize(675, 450);
 }
 
