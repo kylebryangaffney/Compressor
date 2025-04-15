@@ -158,8 +158,14 @@ void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         float dryL = inputDataL[sample];
         float dryR = stereoOut ? inputDataR[sample] : dryL;
 
+        dryL = dryL * params.inputGain;
+        dryR = dryR * params.inputGain;
+
         float wetL = lowCutFilter.processSample(0, dryL);
         float wetR = lowCutFilter.processSample(1, dryR);
+
+        wetL = wetL * params.outputGain;
+        wetR = wetR * params.outputGain;
 
         outputDataL[sample] = wetL;
         outputDataR[sample] = wetR;
