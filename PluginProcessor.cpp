@@ -12,13 +12,31 @@
 
 //==============================================================================
 CompressorAudioProcessor::CompressorAudioProcessor()
-    :AudioProcessor(
+    : AudioProcessor(
         BusesProperties()
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
     ),
-    params(apvts)
+    apvts(*this, nullptr, "Parameters", Parameters::createParameterLayout()),
+    params(apvts), 
+    compressorA(
+        params.compAAttackParam,
+        params.compAReleaseParam,
+        params.compARatioParam,
+        params.compABypassParam,
+        params.compAMuteParam,
+        params.compASoloParam
+    ),
+    compressorB(
+        params.compBAttackParam,
+        params.compBReleaseParam,
+        params.compBRatioParam,
+        params.compBBypassParam,
+        params.compBMuteParam,
+        params.compBSoloParam
+    )
 {
+ 
     lowCutFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
 }
 

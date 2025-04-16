@@ -10,14 +10,14 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "../Service/ChoicesList.h"
 
 
 class CompressorUnit
 {
 public:
-    CompressorUnit(juce::AudioParameterFloat* attackParam,
-        juce::AudioParameterFloat* releaseParam,
-        juce::AudioParameterFloat* thresholdParam,
+    CompressorUnit(juce::AudioParameterChoice* attackParam,
+        juce::AudioParameterChoice* releaseParam,
         juce::AudioParameterChoice* ratioParam,
         juce::AudioParameterBool* bypassParam,
         juce::AudioParameterBool* muteParam,
@@ -27,15 +27,25 @@ public:
     void reset();
     void updateCompressorSettings();
     void processCompression(juce::AudioBuffer<float>& buffer);
+    void configure(juce::AudioParameterChoice* attackParam,
+        juce::AudioParameterChoice* releaseParam,
+        juce::AudioParameterChoice* ratioParam,
+        juce::AudioParameterBool* bypassParam,
+        juce::AudioParameterBool* muteParam,
+        juce::AudioParameterBool* soloParam);
 
 private:
     juce::dsp::Compressor<float> compressor;
 
-    juce::AudioParameterFloat* attack;
-    juce::AudioParameterFloat* release;
-    juce::AudioParameterFloat* threshold;
+    juce::AudioParameterChoice* attack;
+    juce::AudioParameterChoice* release;
     juce::AudioParameterChoice* ratio;
     juce::AudioParameterBool* bypassed;
     juce::AudioParameterBool* mute;
     juce::AudioParameterBool* solo;
+
+    static constexpr float thresholdInDecibels = -24.0f;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CompressorUnit)
+
 };

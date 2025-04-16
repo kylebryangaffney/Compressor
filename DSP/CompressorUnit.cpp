@@ -9,22 +9,36 @@
 */
 #include "CompressorUnit.h"
 
-CompressorUnit::CompressorUnit(juce::AudioParameterFloat* attackParam,
-    juce::AudioParameterFloat* releaseParam,
-    juce::AudioParameterFloat* thresholdParam,
+CompressorUnit::CompressorUnit(juce::AudioParameterChoice* attackParam,
+    juce::AudioParameterChoice* releaseParam,
     juce::AudioParameterChoice* ratioParam,
     juce::AudioParameterBool* bypassParam,
     juce::AudioParameterBool* muteParam,
     juce::AudioParameterBool* soloParam)
     : attack(attackParam),
     release(releaseParam),
-    threshold(thresholdParam),
     ratio(ratioParam),
     bypassed(bypassParam),
     mute(muteParam),
     solo(soloParam)
 {
 }
+
+void CompressorUnit::configure(juce::AudioParameterChoice* attackParam,
+    juce::AudioParameterChoice* releaseParam,
+    juce::AudioParameterChoice* ratioParam,
+    juce::AudioParameterBool* bypassParam,
+    juce::AudioParameterBool* muteParam,
+    juce::AudioParameterBool* soloParam)
+{
+    attack = attackParam;
+    release = releaseParam;
+    ratio = ratioParam;
+    bypassed = bypassParam;
+    mute = muteParam;
+    solo = soloParam;
+}
+
 
 void CompressorUnit::prepare(const juce::dsp::ProcessSpec& spec)
 {
@@ -38,11 +52,12 @@ void CompressorUnit::reset()
 
 void CompressorUnit::updateCompressorSettings()
 {
-    jassert(attack && release && threshold && ratio);
-    compressor.setAttack(attack->get());
-    compressor.setRelease(release->get());
-    compressor.setThreshold(threshold->get());
-    compressor.setRatio(ratio->getCurrentChoiceName().getFloatValue());
+    jassert(attack && release && ratio);
+
+    compressor.setAttack(ChoiceLists::getValueForIndex(attack, ChoiceLists::attackValues));
+    compressor.setRelease(ChoiceLists::getValueForIndex(release, ChoiceLists::releaseValues));
+    compressor.setRatio(ChoiceLists::getValueForIndex(ratio, ChoiceLists::ratioValues));
+    compressor.setThreshold(thresholdInDecibels);
 }
 
 void CompressorUnit::processCompression(juce::AudioBuffer<float>& buffer)

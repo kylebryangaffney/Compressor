@@ -51,12 +51,21 @@ Parameters::Parameters(juce::AudioProcessorValueTreeState& apvts)
     castParameter(apvts, ParamIDs::outputGain, outputGainParam);
     castParameter(apvts, ParamIDs::lowCut, lowCutParam);
     castParameter(apvts, ParamIDs::meterSwitch, meterSwitchParam);
+
     castParameter(apvts, ParamIDs::compAAttack, compAAttackParam);
     castParameter(apvts, ParamIDs::compARatio, compARatioParam);
     castParameter(apvts, ParamIDs::compARelease, compAReleaseParam);
+    castParameter(apvts, ParamIDs::compABypass, compABypassParam);
+    castParameter(apvts, ParamIDs::compAMute, compAMuteParam);
+    castParameter(apvts, ParamIDs::compASolo, compASoloParam);
+
     castParameter(apvts, ParamIDs::compBAttack, compBAttackParam);
     castParameter(apvts, ParamIDs::compBRatio, compBRatioParam);
     castParameter(apvts, ParamIDs::compBRelease, compBReleaseParam);
+    castParameter(apvts, ParamIDs::compBBypass, compBBypassParam);
+    castParameter(apvts, ParamIDs::compBSolo, compBSoloParam);
+    castParameter(apvts, ParamIDs::compBMute, compBMuteParam);
+
     castParameter(apvts, ParamIDs::bypass, bypassParam);
 }
 
@@ -71,14 +80,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         juce::NormalisableRange<float>{ -100.f, 18.f, 0.01f },
         0.f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromDecibels)
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamIDs::outputGain, "Output Gain",
         juce::NormalisableRange<float>{ -100.f, 18.f, 0.01f },
         0.f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromDecibels)
-        ));
+    ));
 
     //==============================================================================
     // Filter
@@ -89,7 +98,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         juce::AudioParameterFloatAttributes()
         .withStringFromValueFunction(stringFromHz)
         .withValueFromStringFunction(hzFromString)
-        ));
+    ));
 
     //==============================================================================
     // Compressor A
@@ -98,21 +107,39 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         "Comp A Ratio",
         ChoiceLists::ratioOptions,
         1 // Default: "2:1"
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamIDs::compAAttack,
         "Comp A Attack",
         ChoiceLists::attackOptions,
         1 // Default: "7.0 ms"
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamIDs::compARelease,
         "Comp A Release",
         ChoiceLists::releaseOptions,
         0 // Default: "55 ms"
-        ));
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compAMute,
+        "Comp A Mute",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compABypass,
+        "Comp A Bypass",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compASolo,
+        "Comp A Solo",
+        false
+    ));
 
     //==============================================================================
     // Compressor B
@@ -121,21 +148,39 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         "Comp B Ratio",
         ChoiceLists::ratioOptions,
         1 // Default: "2:1"
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamIDs::compBAttack,
         "Comp B Attack",
         ChoiceLists::attackOptions,
         1 // Default: "7.0 ms"
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         ParamIDs::compBRelease,
         "Comp B Release",
         ChoiceLists::releaseOptions,
         0 // Default: "55 ms"
-        ));
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compBMute,
+        "Comp B Mute",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compBBypass,
+        "Comp B Bypass",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        ParamIDs::compBSolo,
+        "Comp B Solo",
+        false
+    ));
 
     //==============================================================================
     // Metering & Utility
@@ -144,13 +189,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         "Meter View",
         ChoiceLists::meterOptions,
         0 // Default: "Input"
-        ));
+    ));
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
         ParamIDs::bypass,
         "Bypass",
         false
-        ));
+    ));
 
     return layout;
 }
@@ -165,27 +210,34 @@ void Parameters::prepareToPlay(double sampleRate) noexcept
     lowCutSmoother.reset(sampleRate, smoothingTime);
 }
 
+
 void Parameters::reset() noexcept
 {
-    // Sync values from APVTS
-    inputGain = inputGainParam->get();
-    outputGain = outputGainParam->get();
-    lowCut = lowCutParam->get();
+    inputGain = 0.f;
+    outputGain = 0.f;
+    lowCut = 75.f;
 
-    compAAttack = ChoiceLists::attackValues[compAAttackParam->getIndex()];
-    compARatio = ChoiceLists::ratioValues[compARatioParam->getIndex()];
-    compARelease = ChoiceLists::releaseValues[compAReleaseParam->getIndex()];
+    compAAttack = 1.f;
+    compARatio = 1.5f;
+    compARelease = 55.f;
+    compABypass = false;
+    compAMute = false;
+    compASolo = false;
 
-    compBAttack = ChoiceLists::attackValues[compBAttackParam->getIndex()];
-    compBRatio = ChoiceLists::ratioValues[compBRatioParam->getIndex()];
-    compBRelease = ChoiceLists::releaseValues[compBReleaseParam->getIndex()];
+    compBAttack = 1.f;
+    compBRatio = 1.5f;
+    compBRelease = 55.f;
+    compBBypass = false;
+    compBMute = false;
+    compBSolo = false;
+
+    bypassed = false;
 
     inputGainSmoother.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(inputGainParam->get()));
     outputGainSmoother.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(outputGainParam->get()));
     lowCutSmoother.setCurrentAndTargetValue(lowCutParam->get());
-
+    
 }
-
 
 void Parameters::update() noexcept
 {
@@ -206,6 +258,14 @@ void Parameters::update() noexcept
 
     compARelease = ChoiceLists::releaseValues[compAReleaseParam->getIndex()];
     compBRelease = ChoiceLists::releaseValues[compBReleaseParam->getIndex()];
+
+    compABypass = compABypassParam->get();
+    compBBypass = compBBypassParam->get();
+
+    compAMute = compAMuteParam->get();
+    compBMute = compBMuteParam->get();
+    compASolo = compASoloParam->get();
+    compBSolo = compBSoloParam->get();
 }
 
 void Parameters::smoothen() noexcept

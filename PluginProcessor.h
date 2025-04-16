@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "Service/Parameters.h"
+#include "DSP/CompressorUnit.h"
 
 //==============================================================================
 /**
@@ -65,6 +66,9 @@ private:
 
     juce::dsp::StateVariableTPTFilter<float> lowCutFilter;
     float lastLowCut = -1.f;
+
+    CompressorUnit compressorA;
+    CompressorUnit compressorB;
 
     void initializeProcessing(juce::AudioBuffer<float>& buffer);
     void updateLowCutFilter();

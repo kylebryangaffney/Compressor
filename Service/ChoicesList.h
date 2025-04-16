@@ -54,4 +54,11 @@ namespace ChoiceLists
         TotalGR,
         Off
     };
+
+    template<typename ParamType, size_t N>
+    inline float getValueForIndex(const ParamType* param, const float(&values)[N])
+    {
+        int i = param->getIndex();
+        return (i >= 0 && i < static_cast<int>(N)) ? values[i] : values[0]; // fallback for safety
+    }
 }
