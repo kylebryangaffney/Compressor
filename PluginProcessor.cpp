@@ -119,8 +119,15 @@ void CompressorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
 
     lowCutFilter.prepare(spec);
     lowCutFilter.reset();
-
     lastLowCut = -1.f;
+
+    compressorA.prepare(spec);
+    compressorA.reset();
+    compressorA.updateCompressorSettings();
+
+    compressorB.prepare(spec);
+    compressorB.reset();
+    compressorB.updateCompressorSettings();
 }
 
 void CompressorAudioProcessor::releaseResources()
@@ -151,52 +158,60 @@ bool CompressorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts
 
 void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::AudioBuffer mainInput = getBusBuffer(buffer, true, 0);
-    juce::AudioBuffer mainOutput = getBusBuffer(buffer, false, 0);
+    juce::AudioBuffer<float> mainInput = getBusBuffer(buffer, true, 0); // Input bus 0
+    juce::AudioBuffer<float> mainOutput = getBusBuffer(buffer, false, 0); // Output bus 0
 
-    const bool stereoIn = mainInput.getNumChannels() > 1;
-    const bool stereoOut = mainOutput.getNumChannels() > 1;
-
-    const float* inputDataL = mainInput.getReadPointer(0);
-    const float* inputDataR = mainInput.getReadPointer(stereoIn ? 1 : 0);
-    float* outputDataL = mainOutput.getWritePointer(0);
-    float* outputDataR = mainOutput.getWritePointer(stereoOut ? 1 : 0);
-
-    float maxL = 0.f;
-    float maxR = 0.f;
+    const int numInputChannels = mainInput.getNumChannels();
+    const int numOutputChannels = mainOutput.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
 
     params.update();
+    params.smoothen();
+    updateLowCutFilter();
 
-    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+    // Clear unused output channels
+    for (int ch = numInputChannels; ch < numOutputChannels; ++ch)
+        mainOutput.clear(ch, 0, numSamples);
+
+    // Copy input to output for processing
+    for (int ch = 0; ch < juce::jmin(numInputChannels, numOutputChannels); ++ch)
+        mainOutput.copyFrom(ch, 0, mainInput, ch, 0, numSamples);
+
+    juce::dsp::AudioBlock<float> audioBlock(mainOutput);
+    audioBlock.multiplyBy(params.inputGain);
+
+    for (int ch = 0; ch < mainOutput.getNumChannels(); ++ch)
     {
-        params.smoothen();
-
-        updateLowCutFilter();
-
-        float dryL = inputDataL[sample];
-        float dryR = stereoOut ? inputDataR[sample] : dryL;
-
-        dryL = dryL * params.inputGain;
-        dryR = dryR * params.inputGain;
-
-        float wetL = lowCutFilter.processSample(0, dryL);
-        float wetR = lowCutFilter.processSample(1, dryR);
-
-        wetL = wetL * params.outputGain;
-        wetR = wetR * params.outputGain;
-
-        outputDataL[sample] = wetL;
-        outputDataR[sample] = wetR;
-
-        maxL = std::max(maxL, std::abs(wetL));
-        maxR = std::max(maxR, std::abs(wetR));
+        auto channelBlock = audioBlock.getSingleChannelBlock(ch);
+        juce::dsp::ProcessContextReplacing<float> context(channelBlock);
+        lowCutFilter.process(context);
     }
-    DBG("LowCut frequency: " << params.lowCut << " Hz");
+
+    // Update compressor settings
+    compressorA.updateCompressorSettings();
+    compressorB.updateCompressorSettings();
+
+    // Process with Compressor A
+    compressorA.processCompression(mainOutput);
+
+    // Process with Compressor B
+    compressorB.processCompression(mainOutput);
+
+    audioBlock.multiplyBy(params.outputGain);
+
+    // Metering: peak levels for L and R
+    float maxL = mainOutput.getRMSLevel(0, 0, numSamples);
+    float maxR = (mainOutput.getNumChannels() > 1)
+        ? mainOutput.getRMSLevel(1, 0, numSamples)
+        : maxL;
+
+    DBG("Output RMS: L = " << maxL << ", R = " << maxR);
 
 #if JUCE_DEBUG
     protectYourEars(buffer);
 #endif
 }
+
 
 //==============================================================================
 bool CompressorAudioProcessor::hasEditor() const
