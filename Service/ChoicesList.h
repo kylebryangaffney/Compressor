@@ -27,8 +27,8 @@ namespace ChoiceLists
         "1.0 ms", "7.0 ms", "15.0 ms"
     };
 
-    inline constexpr float attackValues[] = {
-        1.0f, 7.0f, 15.0f
+    inline constexpr float attackValues[] = { //in seconds
+        0.001f, 0.007f, 0.015f
     };
 
     // Release time options
@@ -36,8 +36,8 @@ namespace ChoiceLists
         "55 ms", "150 ms", "300 ms"
     };
 
-    inline constexpr float releaseValues[] = {
-        55.0f, 150.0f, 300.0f
+    inline constexpr float releaseValues[] = { //in seconds
+        0.055f, 0.150f, 0.300f
     };
 
     // Meter switch options
