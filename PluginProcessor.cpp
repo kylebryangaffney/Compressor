@@ -18,7 +18,7 @@ CompressorAudioProcessor::CompressorAudioProcessor()
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)
     ),
     apvts(*this, nullptr, "Parameters", Parameters::createParameterLayout()),
-    params(apvts), 
+    params(apvts),
     compressorA(
         params.compAAttackParam,
         params.compAReleaseParam,
@@ -36,7 +36,7 @@ CompressorAudioProcessor::CompressorAudioProcessor()
         params.compBSoloParam
     )
 {
- 
+
     lowCutFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
 }
 
@@ -117,9 +117,12 @@ void CompressorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     spec.maximumBlockSize = juce::uint32(samplesPerBlock);
     spec.numChannels = 2;
 
+    inputGainProcessor.prepare(spec);
+    inputGainProcessor.reset();
+    inputGainProcessor.setRampDurationSeconds(0.02);
+
     lowCutFilter.prepare(spec);
     lowCutFilter.reset();
-    lastLowCut = -1.f;
 
     compressorA.prepare(spec);
     compressorA.reset();
@@ -128,6 +131,11 @@ void CompressorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     compressorB.prepare(spec);
     compressorB.reset();
     compressorB.updateCompressorSettings();
+
+    outputGainProcessor.prepare(spec);
+    outputGainProcessor.reset();
+    outputGainProcessor.setRampDurationSeconds(0.02);
+
 }
 
 void CompressorAudioProcessor::releaseResources()
@@ -158,6 +166,8 @@ bool CompressorAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts
 
 void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    DBG("processBlock running; inputGainParam = " << params.inputGainParam->get());
+
     juce::AudioBuffer<float> mainInput = getBusBuffer(buffer, true, 0); // Input bus 0
     juce::AudioBuffer<float> mainOutput = getBusBuffer(buffer, false, 0); // Output bus 0
 
@@ -177,27 +187,18 @@ void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     for (int ch = 0; ch < juce::jmin(numInputChannels, numOutputChannels); ++ch)
         mainOutput.copyFrom(ch, 0, mainInput, ch, 0, numSamples);
 
-    juce::dsp::AudioBlock<float> audioBlock(mainOutput);
-    audioBlock.multiplyBy(params.inputGain);
+    juce::dsp::AudioBlock<float>  block(mainOutput);
+    juce::dsp::ProcessContextReplacing<float> ctx(block);
 
-    for (int ch = 0; ch < mainOutput.getNumChannels(); ++ch)
-    {
-        auto channelBlock = audioBlock.getSingleChannelBlock(ch);
-        juce::dsp::ProcessContextReplacing<float> context(channelBlock);
-        lowCutFilter.process(context);
-    }
+    inputGainProcessor.setGainLinear(juce::Decibels::decibelsToGain(params.inputGainParam->get())
+    );
+    inputGainProcessor.process(ctx);
 
-    // Update compressor settings
-    compressorA.updateCompressorSettings();
-    compressorB.updateCompressorSettings();
+    lowCutFilter.process(ctx);
 
-    // Process with Compressor A
-    compressorA.processCompression(mainOutput);
-
-    // Process with Compressor B
-    compressorB.processCompression(mainOutput);
-
-    audioBlock.multiplyBy(params.outputGain);
+    outputGainProcessor.setGainLinear(juce::Decibels::decibelsToGain(params.outputGainParam->get())
+    );
+    outputGainProcessor.process(ctx);
 
     // Metering: peak levels for L and R
     float maxL = mainOutput.getRMSLevel(0, 0, numSamples);
@@ -211,6 +212,7 @@ void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     protectYourEars(buffer);
 #endif
 }
+
 
 
 //==============================================================================
@@ -262,10 +264,7 @@ void CompressorAudioProcessor::initializeProcessing(juce::AudioBuffer<float>& bu
 
 void CompressorAudioProcessor::updateLowCutFilter()
 {
-    if (params.lowCut != lastLowCut)
-    {
-        lowCutFilter.setResonance(0.7071f);
-        lowCutFilter.setCutoffFrequency(params.lowCut);
-        lastLowCut = params.lowCut;
-    }
+    auto targetCutoff = params.lowCutParam->get();
+    lowCutFilter.setResonance(0.7071f);
+    lowCutFilter.setCutoffFrequency(targetCutoff);
 }

@@ -1,14 +1,10 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
+// update sample by sample to block processing on input gain, filter, and output gain
+// keep track of previous values in the compressor unit for attack release and ratio and only process if values change
 
 #pragma once
 
 #include <JuceHeader.h>
+#include <juce_dsp/juce_dsp.h>
 #include "Service/Parameters.h"
 #include "DSP/CompressorUnit.h"
 
@@ -65,7 +61,9 @@ private:
     //==============================================================================
 
     juce::dsp::StateVariableTPTFilter<float> lowCutFilter;
-    float lastLowCut = -1.f;
+
+    juce::dsp::Gain<float> inputGainProcessor;
+    juce::dsp::Gain<float> outputGainProcessor;
 
     CompressorUnit compressorA;
     CompressorUnit compressorB;

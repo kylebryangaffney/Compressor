@@ -59,14 +59,14 @@ public:
     float compAAttack = 1.f;
     float compARatio = 1.5f;
     float compARelease = 55.f;
-    bool compABypass = false;
+    bool compABypassed = false;
     bool compAMute = false;
     bool compASolo = false;
 
     float compBAttack = 1.f;
     float compBRatio = 1.5f;
     float compBRelease = 55.f;
-    bool compBBypass = false;
+    bool compBBypassed = false;
     bool compBMute = false;
     bool compBSolo = false;
 
@@ -98,7 +98,7 @@ public:
     juce::AudioParameterBool* compBBypassParam = nullptr;
 
 private:
-    
+
 
     //==============================================================================
     // Smoothers

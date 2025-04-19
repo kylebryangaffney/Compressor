@@ -220,14 +220,14 @@ void Parameters::reset() noexcept
     compAAttack = 1.f;
     compARatio = 1.5f;
     compARelease = 55.f;
-    compABypass = false;
+    compABypassed = false;
     compAMute = false;
     compASolo = false;
 
     compBAttack = 1.f;
     compBRatio = 1.5f;
     compBRelease = 55.f;
-    compBBypass = false;
+    compBBypassed = false;
     compBMute = false;
     compBSolo = false;
 
@@ -236,7 +236,7 @@ void Parameters::reset() noexcept
     inputGainSmoother.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(inputGainParam->get()));
     outputGainSmoother.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(outputGainParam->get()));
     lowCutSmoother.setCurrentAndTargetValue(lowCutParam->get());
-    
+
 }
 
 void Parameters::update() noexcept
@@ -259,8 +259,8 @@ void Parameters::update() noexcept
     compARelease = ChoiceLists::releaseValues[compAReleaseParam->getIndex()];
     compBRelease = ChoiceLists::releaseValues[compBReleaseParam->getIndex()];
 
-    compABypass = compABypassParam->get();
-    compBBypass = compBBypassParam->get();
+    compABypassed = compABypassParam->get();
+    compBBypassed = compBBypassParam->get();
 
     compAMute = compAMuteParam->get();
     compBMute = compBMuteParam->get();
