@@ -1,4 +1,4 @@
-// update sample by sample to block processing on input gain, filter, and output gain
+
 // keep track of previous values in the compressor unit for attack release and ratio and only process if values change
 
 #pragma once

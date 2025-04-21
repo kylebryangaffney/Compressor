@@ -196,6 +196,12 @@ void CompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     lowCutFilter.process(ctx);
 
+    compressorA.updateCompressorSettings();
+    compressorA.processCompression(ctx);
+
+    compressorB.updateCompressorSettings();
+    compressorB.processCompression(ctx);
+
     outputGainProcessor.setGainLinear(juce::Decibels::decibelsToGain(params.outputGainParam->get())
     );
     outputGainProcessor.process(ctx);

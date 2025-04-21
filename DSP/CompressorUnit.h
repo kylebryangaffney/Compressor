@@ -26,7 +26,7 @@ public:
     void prepare(const juce::dsp::ProcessSpec& spec);
     void reset();
     void updateCompressorSettings();
-    void processCompression(juce::AudioBuffer<float>& buffer);
+    void processCompression(juce::dsp::ProcessContextReplacing<float>& context);
     void configure(juce::AudioParameterChoice* attackParam,
         juce::AudioParameterChoice* releaseParam,
         juce::AudioParameterChoice* ratioParam,
@@ -44,7 +44,7 @@ private:
     juce::AudioParameterBool* mute;
     juce::AudioParameterBool* solo;
 
-    static constexpr float thresholdInDecibels = -24.0f;
+    static constexpr float thresholdInDecibels = -12.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CompressorUnit)
 

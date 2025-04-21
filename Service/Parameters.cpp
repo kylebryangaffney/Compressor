@@ -77,7 +77,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
     // Gain Controls
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         ParamIDs::inputGain, "Input Gain",
-        juce::NormalisableRange<float>{ -60.f, 18.f, 0.01f },
+        juce::NormalisableRange<float>{ -60.f, 12.f, 0.01f },
         0.f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromDecibels)
     ));

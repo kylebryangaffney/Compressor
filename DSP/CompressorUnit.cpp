@@ -60,18 +60,16 @@ void CompressorUnit::updateCompressorSettings()
     compressor.setThreshold(thresholdInDecibels);
 }
 
-void CompressorUnit::processCompression(juce::AudioBuffer<float>& buffer)
+void CompressorUnit::processCompression(juce::dsp::ProcessContextReplacing<float>& context)
 {
     if (bypassed && bypassed->get())
         return;
 
     if (mute && mute->get())
     {
-        buffer.clear();
+        context.getOutputBlock().clear();
         return;
     }
 
-    auto block = juce::dsp::AudioBlock<float>(buffer);
-    auto context = juce::dsp::ProcessContextReplacing<float>(block);
     compressor.process(context);
 }
